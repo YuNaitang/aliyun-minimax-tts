@@ -7,19 +7,15 @@ import aiohttp
 
 from astrbot.api.star import Star, register
 from astrbot.api import logger
-from astrbot.core.provider.entities import ProviderType
+from astrbot.core.provider.entities import ProviderType, ProviderMetaData
 from astrbot.core.provider.provider import TTSProvider
-from astrbot.core.provider.register import register_provider_adapter, provider_cls_map
+from astrbot.core.provider.register import provider_cls_map, provider_registry
 
 
 _PROVIDER_TYPE = "aliyun_minimax_tts"
+_PROVIDER_DESC = "阿里云百炼 MiniMax TTS"
 
 
-@register_provider_adapter(
-    _PROVIDER_TYPE,
-    "阿里云百炼 MiniMax TTS",
-    provider_type=ProviderType.TEXT_TO_SPEECH,
-)
 class ProviderAliyunMiniMaxTTS(TTSProvider):
     """阿里云百炼 MiniMax 语音合成适配器"""
 
@@ -119,9 +115,29 @@ class Main(Star):
 
     def __init__(self, context: "RegisterContext"):
         super().__init__(context)
+        # 手动注册 Provider 适配器（避免 AstrBot 重复扫描导致冲突）
+        self._register_provider()
         # 自动将 TTS 配置写入 cmd_config.json（如果不存在）
         self._ensure_config(context)
-        logger.info(f"aliyun_minimax_tts 插件已加载，Provider 适配器已注册")
+        logger.info(f"aliyun_minimax_tts 插件已加载")
+
+    def _register_provider(self) -> None:
+        """将 Provider 适配器注册到 AstrBot 的 Provider 系统"""
+        if _PROVIDER_TYPE in provider_cls_map:
+            logger.info(f"Provider 已注册，跳过")
+            return
+
+        metadata = ProviderMetaData(
+            id="default",
+            model=None,
+            type=_PROVIDER_TYPE,
+            provider_type=ProviderType.TEXT_TO_SPEECH,
+            desc=_PROVIDER_DESC,
+            cls_type=ProviderAliyunMiniMaxTTS,
+        )
+        provider_cls_map[_PROVIDER_TYPE] = metadata
+        provider_registry.append(metadata)
+        logger.info(f"Provider 适配器已注册: {_PROVIDER_TYPE}")
 
     def _ensure_config(self, context: "RegisterContext") -> None:
         """检查 cmd_config.json 中是否存在 TTS 配置，不存在则自动添加"""
