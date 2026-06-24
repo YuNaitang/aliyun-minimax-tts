@@ -8,7 +8,7 @@ from astrbot.api.star import Star, register
 from astrbot.api import logger
 from astrbot.core.provider.entities import ProviderType
 from astrbot.core.provider.provider import TTSProvider
-from astrbot.core.provider.register import provider_cls_map, provider_desc_map
+from astrbot.core.provider.register import provider_cls_map
 
 
 _PROVIDER_TYPE = "aliyun_minimax_tts"
@@ -101,7 +101,6 @@ class Main(Star):
         # 程序化注册 Provider 适配器，避免导入时冲突
         if _PROVIDER_TYPE not in provider_cls_map:
             provider_cls_map[_PROVIDER_TYPE] = ProviderAliyunMiniMaxTTS
-            provider_desc_map[_PROVIDER_TYPE] = "阿里云百炼 MiniMax TTS"
             logger.info(f"aliyun_minimax_tts 插件已加载，Provider 适配器已注册")
         else:
             logger.info(f"aliyun_minimax_tts 插件已加载（Provider 已存在，跳过注册）")
