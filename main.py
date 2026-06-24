@@ -150,13 +150,24 @@ class Main(Star):
         provider_registry.append(metadata)
         logger.info(f"Provider 适配器已注册: {_PROVIDER_TYPE}")
 
+    def _find_astrbot_root(self) -> Path:
+        """向上搜索目录树，寻找 AstrBot 根目录（包含 data/cmd_config.json 的目录）"""
+        current = Path(__file__).resolve().parent
+        for _ in range(10):  # 最多向上搜 10 层
+            if (current / "data" / "cmd_config.json").exists():
+                return current
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+        raise FileNotFoundError("无法定位 AstrBot 根目录（未找到 data/cmd_config.json）")
+
     def _ensure_config(self, context: "RegisterContext") -> None:
         """检查 cmd_config.json 中是否存在 TTS 配置，不存在则自动添加"""
         try:
-            # 从插件路径推算 AstrBot 根目录
-            plugin_dir = Path(__file__).resolve().parent
-            astrbot_root = plugin_dir.parents[2]  # data/plugins/xxx -> ../../
+            astrbot_root = self._find_astrbot_root()
             config_path = astrbot_root / "data" / "cmd_config.json"
+            logger.info(f"AstrBot 根目录: {astrbot_root}")
 
             if not config_path.exists():
                 logger.warning(f"未找到 cmd_config.json: {config_path}，跳过自动配置")
