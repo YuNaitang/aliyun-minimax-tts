@@ -4,7 +4,7 @@ import json
 import tempfile
 import aiohttp
 
-from astrbot.api.star import Star, register, AstrMessageEvent
+from astrbot.api.star import Star, register
 from astrbot.api import logger
 from astrbot.core.provider.entities import ProviderType
 from astrbot.core.provider.provider import TTSProvider
