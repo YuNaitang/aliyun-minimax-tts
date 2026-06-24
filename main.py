@@ -122,11 +122,7 @@ class Main(Star):
         logger.info(f"aliyun_minimax_tts 插件已加载")
 
     def _register_provider(self) -> None:
-        """将 Provider 适配器注册到 AstrBot 的 Provider 系统"""
-        if _PROVIDER_TYPE in provider_cls_map:
-            logger.info(f"Provider 已注册，跳过")
-            return
-
+        """将 Provider 适配器注册/更新到 AstrBot 的 Provider 系统"""
         metadata = ProviderMetaData(
             id="default",
             model=None,
@@ -135,6 +131,21 @@ class Main(Star):
             desc=_PROVIDER_DESC,
             cls_type=ProviderAliyunMiniMaxTTS,
         )
+        if _PROVIDER_TYPE in provider_cls_map:
+            # 已存在则替换为最新版（解决旧版注册被缓存的问题）
+            old = provider_cls_map[_PROVIDER_TYPE]
+            if old.cls_type is not ProviderAliyunMiniMaxTTS:
+                provider_cls_map[_PROVIDER_TYPE] = metadata
+                # 也更新 registry 中的记录
+                for i, item in enumerate(provider_registry):
+                    if item.type == _PROVIDER_TYPE:
+                        provider_registry[i] = metadata
+                        break
+                logger.info(f"Provider 已更新: {_PROVIDER_TYPE}")
+            else:
+                logger.info(f"Provider 已注册且为最新，跳过")
+            return
+
         provider_cls_map[_PROVIDER_TYPE] = metadata
         provider_registry.append(metadata)
         logger.info(f"Provider 适配器已注册: {_PROVIDER_TYPE}")
