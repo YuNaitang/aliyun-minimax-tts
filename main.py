@@ -8,14 +8,12 @@ from astrbot.api.star import Star, register
 from astrbot.api import logger
 from astrbot.core.provider.entities import ProviderType
 from astrbot.core.provider.provider import TTSProvider
-from astrbot.core.provider.register import register_provider_adapter
+from astrbot.core.provider.register import provider_cls_map, provider_desc_map
 
 
-@register_provider_adapter(
-    "aliyun_minimax_tts",
-    "阿里云百炼 MiniMax TTS",
-    provider_type=ProviderType.TEXT_TO_SPEECH,
-)
+_PROVIDER_TYPE = "aliyun_minimax_tts"
+
+
 class ProviderAliyunMiniMaxTTS(TTSProvider):
     """阿里云百炼 MiniMax 语音合成适配器"""
 
@@ -96,14 +94,14 @@ class ProviderAliyunMiniMaxTTS(TTSProvider):
 
 
 class Main(Star):
-    """阿里云百炼 MiniMax TTS - AstrBot 插件入口
-
-    通过本插件，AstrBot 可以使用阿里云百炼平台上的 MiniMax 语音合成模型。
-    Provider 适配器由 @register_provider_adapter 自动注册，
-    此类仅用于通过 AstrBot 的插件加载器检测。
-    """
+    """阿里云百炼 MiniMax TTS - AstrBot 插件入口"""
 
     def __init__(self, context: "RegisterContext"):
         super().__init__(context)
-        logger.info("aliyun_minimax_tts 插件已加载")
-        logger.info("TTS 适配器已注册，可在配置中选择 type=aliyun_minimax_tts")
+        # 程序化注册 Provider 适配器，避免导入时冲突
+        if _PROVIDER_TYPE not in provider_cls_map:
+            provider_cls_map[_PROVIDER_TYPE] = ProviderAliyunMiniMaxTTS
+            provider_desc_map[_PROVIDER_TYPE] = "阿里云百炼 MiniMax TTS"
+            logger.info(f"aliyun_minimax_tts 插件已加载，Provider 适配器已注册")
+        else:
+            logger.info(f"aliyun_minimax_tts 插件已加载（Provider 已存在，跳过注册）")
