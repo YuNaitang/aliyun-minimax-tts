@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import tempfile
+from pathlib import Path
 import aiohttp
 
 from astrbot.api.star import Star, register
@@ -101,6 +102,56 @@ class ProviderAliyunMiniMaxTTS(TTSProvider):
 class Main(Star):
     """阿里云百炼 MiniMax TTS - AstrBot 插件入口"""
 
+    _DEFAULT_CONFIG = {
+        "type": _PROVIDER_TYPE,
+        "id": "tts-aliyun-minimax",
+        "provider_type": "text_to_speech",
+        "enable": True,
+        "api_key": "",
+        "model": "MiniMax/speech-2.8-hd",
+        "aliyun_minimax_voice": "",
+        "aliyun_minimax_speed": 1.0,
+        "aliyun_minimax_volume": 1.0,
+        "aliyun_minimax_pitch": 0,
+        "aliyun_minimax_sample_rate": 44100,
+        "timeout": 60,
+    }
+
     def __init__(self, context: "RegisterContext"):
         super().__init__(context)
+        # 自动将 TTS 配置写入 cmd_config.json（如果不存在）
+        self._ensure_config(context)
         logger.info(f"aliyun_minimax_tts 插件已加载，Provider 适配器已注册")
+
+    def _ensure_config(self, context: "RegisterContext") -> None:
+        """检查 cmd_config.json 中是否存在 TTS 配置，不存在则自动添加"""
+        try:
+            # 从插件路径推算 AstrBot 根目录
+            plugin_dir = Path(__file__).resolve().parent
+            astrbot_root = plugin_dir.parents[2]  # data/plugins/xxx -> ../../
+            config_path = astrbot_root / "data" / "cmd_config.json"
+
+            if not config_path.exists():
+                logger.warning(f"未找到 cmd_config.json: {config_path}，跳过自动配置")
+                return
+
+            # 读取配置
+            with open(config_path, encoding="utf-8-sig") as f:
+                cfg = json.load(f)
+
+            # 检查是否已有我们的 TTS 配置
+            provider_list = cfg.get("provider", [])
+            for p in provider_list:
+                if p.get("type") == _PROVIDER_TYPE:
+                    logger.info(f"TTS 配置已存在，跳过自动写入")
+                    return
+
+            # 添加默认配置
+            cfg.setdefault("provider", []).append(self._DEFAULT_CONFIG)
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+            logger.info(f"✓ 已自动添加 TTS 配置到 cmd_config.json，请填写 api_key 和 voice 后重启生效")
+
+        except Exception as e:
+            logger.warning(f"自动写入 TTS 配置失败: {e}")
