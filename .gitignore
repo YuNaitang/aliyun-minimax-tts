@@ -7,6 +7,9 @@ data/knowledge_base/
 data/config/*.json
 data/plugins.json
 data/logs/
+data/cmd_config.json
+data/diy_providers.json
+data/cmd_config*.json
 *.lock
 .astrbot
 
