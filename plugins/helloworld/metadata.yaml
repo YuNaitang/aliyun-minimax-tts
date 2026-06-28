@@ -1,0 +1,12 @@
+name: astrbot_plugin_helloworld
+author: YourName
+desc: 一个简单的 AstrBot 示例插件，演示插件基础结构
+short_desc: AstrBot 示例插件
+version: "1.0.0"
+repo: https://github.com/yourname/astrbot_plugin_helloworld
+display_name: HelloWorld 示例
+astrbot_version: ">=4.16"
+support_platforms:
+  - aiocqhttp
+  - qq_official
+  - telegram

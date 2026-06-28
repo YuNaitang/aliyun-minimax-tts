@@ -1,0 +1,16 @@
+{
+  "memos_url": {
+    "description": "Memos 服务器地址 (例如 https://memos.example.com)",
+    "type": "string",
+    "hint": "填写协议 + 域名/IP，末尾不要反斜杠",
+    "obvious_hint": true,
+    "default": ""
+  },
+  "memos_token": {
+    "description": "Memos API 访问令牌",
+    "type": "string",
+    "hint": "在 Memos 设置 > 我的账户 > 访问令牌 中创建",
+    "obvious_hint": true,
+    "default": ""
+  }
+}

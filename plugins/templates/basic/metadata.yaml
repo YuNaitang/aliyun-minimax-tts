@@ -1,0 +1,10 @@
+name: astrbot_plugin_your_plugin
+author: YourName
+desc: 你的插件描述
+short_desc: 简短描述
+version: "0.1.0"
+astrbot_version: ">=4.16"
+support_platforms:
+  - aiocqhttp
+  - qq_official
+  - telegram
