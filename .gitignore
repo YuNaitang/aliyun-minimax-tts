@@ -36,3 +36,5 @@ build/
 Thumbs.db
 plugins/
 data/plugins/astrbot_plugin_aliyun_minimax
+plugins/
+data/config/*.json
