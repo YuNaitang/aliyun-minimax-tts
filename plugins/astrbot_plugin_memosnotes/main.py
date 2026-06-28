@@ -11,10 +11,16 @@ MemosNotes - AstrBot Memos 备忘录/日记/知识库集成插件
 配置 (通过 WebUI 或 _conf_schema.json):
   - memos_url:  Memos 实例地址 (例如 https://memos.example.com)
   - memos_token: Memos API 访问令牌
+
+平台适配:
+  - get 指令使用 Nodes 合并转发格式返回，分三段（Front Matter / 内容 / 附件）
+  - 其他指令使用 plain_result 返回
 """
+import asyncio
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star
 from astrbot.api import logger
+from astrbot.core.message.components import Plain, Node, Nodes
 from .client import MemosClient
 
 
@@ -245,32 +251,49 @@ class MemosNotesPlugin(Star):
             yield event.plain_result(f"❌ 未找到备忘录 #{memo_id}。")
             return
 
+        # ---- 构建三段式合并转发 ----
+        memo_name = memo.get("name", "")
+        memo_id = memo_name.split("/")[-1] or memo.get("id", "?")
         content = (memo.get("content") or "").strip()
         visibility = memo.get("visibility", "PRIVATE")
         created = memo.get("createTime", "")
         updated = memo.get("updateTime", "")
-        pinned = "📌 已置顶" if memo.get("pinned") else ""
         state = memo.get("state", "NORMAL")
         creator = memo.get("creator", "").replace("users/", "")
         tags = memo.get("tags", [])
-        title = memo.get("snippet", "")[:40] or (content[:40] if content else "")
-        tag_str = " #".join(tags) if tags else "（无）"
+        title = memo.get("snippet", "") or content[:60] if content else ""
+        pinned = "📌 " if memo.get("pinned") else ""
+        tag_str = " #".join(tags) if tags else "（无标签）"
 
-        lines = [
-            "---",
-            f"📝 #{memo_id}  {pinned}",
-            f"标题: {title}",
-            f"作者: {creator}",
-            f"状态: {'正常' if state == 'NORMAL' else '已归档'}",
-            f"可见性: {visibility}",
-            f"标签: #{tag_str}",
-            f"创建时间: {created}",
-            f"修改时间: {updated}",
-            "---",
-            content,
-            "---",
-        ]
-        yield event.plain_result("\n".join(lines))
+        # Segment 1 — Front Matter
+        front_matter = (
+            f"{pinned}#{memo_id}\n"
+            f"标题: {title}\n"
+            f"作者: {creator}\n"
+            f"状态: {'正常' if state == 'NORMAL' else '已归档'}\n"
+            f"可见性: {visibility}\n"
+            f"标签: #{tag_str}\n"
+            f"创建: {created}\n"
+            f"更新: {updated}"
+        )
+
+        # Segment 2 — 正文
+        body = content or "（空）"
+
+        # Segment 3 — 附件
+        attachments = memo.get("attachments", [])
+        if attachments:
+            attach_lines = [f"- {a.get('name', '未命名')} ({a.get('type', '未知')})" for a in attachments]
+            attachment_text = "📎 附件\n" + "\n".join(attach_lines)
+        else:
+            attachment_text = "📎 无附件"
+
+        nodes = Nodes(nodes=[
+            Node(content=[Plain(text=front_matter)], name="📋 MemosNotes", uin="0"),
+            Node(content=[Plain(text=body)], name="📝 内容", uin="0"),
+            Node(content=[Plain(text=attachment_text)], name="📎 附件", uin="0"),
+        ])
+        yield event.chain_result([nodes])
 
     async def _cmd_update(self, event: AstrMessageEvent, args: str):
         if not args:
