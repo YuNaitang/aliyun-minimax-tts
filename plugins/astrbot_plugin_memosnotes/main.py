@@ -134,7 +134,7 @@ class MemosNotesPlugin(Star):
         yield event.plain_result(
             "📝 MemosNotes 帮助\n"
             "──────────────\n"
-            "/memos create <内容>   创建备忘录\n"
+            "/memos create [-p|--public|--protected] <内容>  创建备忘录（默认私有）\n"
             "/memos list [数量]    列出最近备忘录\n"
             "/memos get <ID>       查看单条详情\n"
             "/memos update <ID> <内容>  更新备忘录\n"
@@ -148,10 +148,27 @@ class MemosNotesPlugin(Star):
 
     async def _cmd_create(self, event: AstrMessageEvent, args: str):
         if not args:
-            yield event.plain_result("❌ 用法: /memos create <备忘录内容>")
+            yield event.plain_result("❌ 用法: /memos create [-p | --public | --protected] <内容>")
             return
 
-        memo = await self.client.create_memo(content=args, visibility="PRIVATE")
+        # 解析可见性标记
+        visibility = "PRIVATE"
+        content = args
+        if content.startswith("--public"):
+            visibility = "PUBLIC"
+            content = content[len("--public"):].strip()
+        elif content.startswith("-p "):
+            visibility = "PUBLIC"
+            content = content[len("-p "):].strip()
+        elif content.startswith("--protected"):
+            visibility = "PROTECTED"
+            content = content[len("--protected"):].strip()
+
+        if not content:
+            yield event.plain_result("❌ 内容不能为空。")
+            return
+
+        memo = await self.client.create_memo(content=content, visibility=visibility)
         if memo is None:
             yield event.plain_result("❌ 创建失败，请检查配置和网络。")
             return
@@ -159,7 +176,7 @@ class MemosNotesPlugin(Star):
         # Memos API 返回的 name 格式为 "memos/{id}"
         memo_name = memo.get("name", "")
         memo_id = memo_name.split("/")[-1] if "/" in memo_name else memo.get("id", "?")
-        yield event.plain_result(f"✅ 备忘录 #{memo_id} 已创建。")
+        yield event.plain_result(f"✅ 备忘录 #{memo_id} 已创建（{visibility}）。")
 
     async def _cmd_list(self, event: AstrMessageEvent, args: str):
         # 解析可选的数量参数
