@@ -1,11 +1,11 @@
 """
 MemosNotes - Memos REST API 异步 HTTP 客户端
 
-封装 Memos (https://usememos.com/) v1 REST API 的 5 个核心端点：
+封装 Memos (https://usememos.com/) v1 REST API：
   - create_memo    POST /api/v1/memos
   - list_memos     GET  /api/v1/memos
   - get_memo       GET  /api/v1/memos/{id}
-  - update_memo    PATCH /api/v1/memos/{id}
+  - update_memo    PATCH /api/v1/memos/{id}   (置顶、归档等)
   - delete_memo    DELETE /api/v1/memos/{id}
 """
 from typing import Optional
@@ -46,15 +46,7 @@ class MemosClient:
     async def create_memo(
         self, content: str, visibility: str = "PRIVATE"
     ) -> Optional[dict]:
-        """创建备忘录
-
-        Args:
-            content: 备忘录内容
-            visibility: 可见性 PRIVATE | PROTECTED | PUBLIC
-
-        Returns:
-            memo dict 或 None（失败时）
-        """
+        """创建备忘录（tags 通过内容 #tag 自动提取）"""
         endpoint = "POST /api/v1/memos"
         try:
             resp = await self._client.post(
@@ -72,15 +64,7 @@ class MemosClient:
         page_size: int = 10,
         page_token: str = "",
     ) -> Optional[dict]:
-        """列出备忘录
-
-        Args:
-            page_size: 每页数量（最大 1000）
-            page_token: 分页令牌（从上次响应获取）
-
-        Returns:
-            {"memos": [...], "nextPageToken": "..."} 或 None
-        """
+        """列出备忘录（默认只返回 state=NORMAL）"""
         endpoint = "GET /api/v1/memos"
         try:
             params = {"pageSize": min(max(page_size, 1), 1000)}
@@ -96,14 +80,7 @@ class MemosClient:
             return None
 
     async def get_memo(self, memo_id: str) -> Optional[dict]:
-        """获取单条备忘录
-
-        Args:
-            memo_id: 备忘录短 ID（例如 "Lnk3P22K8CKoAS4ZFMaj9G"）
-
-        Returns:
-            memo dict 或 None
-        """
+        """获取单条备忘录"""
         endpoint = f"GET /api/v1/memos/{memo_id}"
         try:
             resp = await self._client.get(
@@ -120,22 +97,14 @@ class MemosClient:
     ) -> Optional[dict]:
         """更新备忘录（PATCH，仅传需要更新的字段）
 
-        支持字段: content, visibility, pinned, rowStatus, createdTs, resourceIdList
+        支持字段: content, visibility, pinned, state, tags
         不传的字段不会被修改。
-
-        Args:
-            memo_id: 备忘录短 ID
-            **fields: 要更新的字段
-
-        Returns:
-            更新后的 memo dict 或 None
         """
         endpoint = f"PATCH /api/v1/memos/{memo_id}"
         if not fields:
             logger.warning(f"Memos update_memo({memo_id}) called with no fields.")
             return None
         try:
-            # updateMask 是逗号分隔的字段名列表
             update_mask = ",".join(fields.keys())
             resp = await self._client.patch(
                 f"{self._api_base}/memos/{memo_id}",
@@ -149,14 +118,7 @@ class MemosClient:
             return None
 
     async def delete_memo(self, memo_id: str) -> bool:
-        """删除（软删除）备忘录
-
-        Args:
-            memo_id: 备忘录短 ID
-
-        Returns:
-            bool 是否成功
-        """
+        """删除（软删除）备忘录"""
         endpoint = f"DELETE /api/v1/memos/{memo_id}"
         try:
             resp = await self._client.delete(
