@@ -31,6 +31,5 @@ build/
 # OS
 .DS_Store
 Thumbs.db
-plugins/astrbot_plugin_memosnotes/
-plugins/astrbot_plugin_aliyun_minimax/
+plugins/
 data/plugins/astrbot_plugin_aliyun_minimax
