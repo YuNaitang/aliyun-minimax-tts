@@ -1,0 +1,9 @@
+name: astrbot_plugin_aliyun_minimax
+author: YuNaitang
+desc: 阿里云百炼 MiniMax TTS 语音合成适配器，支持音色克隆
+short_desc: Aliyun MiniMax TTS
+version: "1.3.0"
+astrbot_version: ">=4.16"
+support_platforms:
+  - aiocqhttp
+repo: https://github.com/YuNaitang/aliyun-minimax-tts
