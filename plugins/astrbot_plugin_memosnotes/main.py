@@ -1,9 +1,11 @@
 """
-MemosNotes - AstrBot Memos 备忘录/日记集成插件
+MemosNotes - AstrBot Memos 备忘录/日记/知识库集成插件
 
 功能:
   - 命令式 CRUD: /memos (或 /mn) create|list|get|update|delete|help
   - LLM Tool: write_diary — 让 LLM 通过自然语言写日记
+  - LLM Tool: save_knowledge — 让 LLM 自动将知识沉淀到 Memos
+  - LLM Tool: search_memos — 让 LLM 从 Memos 搜索历史知识
 
 配置 (通过 WebUI 或 _conf_schema.json):
   - memos_url:  Memos 实例地址 (例如 https://memos.example.com)
@@ -142,8 +144,10 @@ class MemosNotesPlugin(Star):
             "/memos help           显示本帮助\n"
             "快捷别名: /mn\n"
             "──────────────\n"
-            "💡 LLM 自然语言写日记:\n"
-            "   直接对 bot 说「写日记」「记录今天」等即可"
+            "💡 LLM 也可以:\n"
+            "   · 写日记：说「写日记」「记录今天」\n"
+            "   · 记知识：说「记住这个」「保存为知识」\n"
+            "   · 查知识：说「查一下」「我的笔记有提到吗」"
         )
 
     async def _cmd_create(self, event: AstrMessageEvent, args: str):
@@ -301,3 +305,80 @@ class MemosNotesPlugin(Star):
         memo_id = memo_name.split("/")[-1] if "/" in memo_name else memo.get("id", "?")
         logger.info(f"write_diary: 已保存备忘录 #{memo_id}")
         yield event.plain_result(f"✅ 已保存为备忘录 #{memo_id}。")
+
+    # ------------------------------------------------------------------
+    # LLM 工具 — 知识库读写
+    # ------------------------------------------------------------------
+
+    @filter.llm_tool(name="save_knowledge")
+    async def save_knowledge(self, event: AstrMessageEvent, content: str, visibility: str = "PRIVATE"):
+        """Save a knowledge note to Memos knowledge base. 当用户在对话中提到有用的知识点、技巧、灵感、经验总结时，使用此工具将其保存到 Memos 作为知识沉淀。配合其他工具使用，完成用户任务后自动记录学到的新知识。
+
+        Args:
+            content(string): 知识内容，完整保留。
+            visibility(string): 可见性，PRIVATE（私有）/ PROTECTED（登录可见）/ PUBLIC（公开）。默认 PRIVATE。
+        """
+        if self.client is None:
+            yield event.plain_result("❌ MemosNotes 未配置。")
+            return
+
+        # 规范化可见性参数
+        vis = visibility.upper()
+        if vis not in ("PRIVATE", "PROTECTED", "PUBLIC"):
+            vis = "PRIVATE"
+
+        memo = await self.client.create_memo(content=content, visibility=vis)
+        if memo is None:
+            yield event.plain_result("❌ 知识保存失败。")
+            return
+
+        memo_name = memo.get("name", "")
+        memo_id = memo_name.split("/")[-1] if "/" in memo_name else memo.get("id", "?")
+        logger.info(f"save_knowledge: 已保存知识 #{memo_id}")
+        yield event.plain_result(f"✅ 知识已保存到 Memos #{memo_id}。")
+
+    @filter.llm_tool(name="search_memos")
+    async def search_memos(self, event: AstrMessageEvent, query: str, limit: str = "10"):
+        """Search recent memos from Memos knowledge base. 当需要查询历史知识、查找之前记录的信息、回顾笔记时，使用此工具从 Memos 中搜索相关内容。语义匹配由 AI 自行判断。
+
+        Args:
+            query(string): 搜索关键词或查询意图描述。
+            limit(string): 返回结果数量上限，最大 50，默认 10。
+        """
+        if self.client is None:
+            yield event.plain_result("❌ MemosNotes 未配置。")
+            return
+
+        # 确保 limit 在合理范围
+        try:
+            page_size = max(1, min(int(limit), 50))
+        except (ValueError, TypeError):
+            page_size = 10
+
+        result = await self.client.list_memos(page_size=page_size)
+        if result is None:
+            yield event.plain_result("❌ 查询失败。")
+            return
+
+        memos = result.get("memos", [])
+        if not memos:
+            yield event.plain_result("📭 知识库中暂无内容。")
+            return
+
+        lines = ["📚 以下是 Memos 知识库中找到的相关内容："]
+        for m in memos:
+            memo_name = m.get("name", "")
+            memo_id = memo_name.split("/")[-1] if "/" in memo_name else m.get("id", "?")
+
+            # 提供完整内容让 LLM 做语义判断
+            snippet = m.get("content", "") or ""
+            if len(snippet) > 300:
+                snippet = snippet[:300] + "……"
+
+            created = m.get("createTime", "")
+            lines.append(f"\n━━━ #{memo_id} ━━━")
+            if created:
+                lines.append(f"📅 {created}")
+            lines.append(snippet)
+
+        yield event.plain_result("\n".join(lines))
