@@ -33,3 +33,4 @@ build/
 Thumbs.db
 plugins/astrbot_plugin_memosnotes/
 plugins/astrbot_plugin_aliyun_minimax/
+data/plugins/astrbot_plugin_aliyun_minimax
