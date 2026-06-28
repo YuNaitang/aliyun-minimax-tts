@@ -205,8 +205,13 @@ class MemosNotesPlugin(Star):
         for m in memos:
             memo_name = m.get("name", "")
             memo_id = memo_name.split("/")[-1] if "/" in memo_name else m.get("id", "?")
-            content = (m.get("content", "") or "").replace("\n", " ")[:80]
-            lines.append(f"  #{memo_id}  {content}")
+            content = (m.get("content", "") or "").strip()
+            snippet = content.replace("\n", " ")[:60]
+            # 限制总可见长度 — 如果原内容更长，追加 ……
+            if len(content.replace("\n", " ")) > 60:
+                snippet += "……"
+            lines.append(f"📝 #{memo_id}  {snippet}")
+            lines.append("")  # 空行分隔
         yield event.plain_result("\n".join(lines))
 
     async def _cmd_get(self, event: AstrMessageEvent, args: str):
@@ -214,7 +219,8 @@ class MemosNotesPlugin(Star):
             yield event.plain_result("❌ 用法: /memos get <备忘录ID>")
             return
 
-        memo_id = args.split()[0].strip()
+        # 去掉用户可能输入的 # 前缀
+        memo_id = args.split()[0].strip().lstrip("#")
         if not memo_id:
             yield event.plain_result("❌ ID 不能为空。")
             return
@@ -227,14 +233,22 @@ class MemosNotesPlugin(Star):
         content = (memo.get("content") or "").strip()
         visibility = memo.get("visibility", "PRIVATE")
         created = memo.get("createTime", "")
+        updated = memo.get("updateTime", "")
         pinned = "📌 已置顶" if memo.get("pinned") else ""
+        creator = memo.get("creator", "").replace("users/", "")
+        title = memo.get("snippet", "")[:40] or (content[:40] if content else "")
 
         yield event.plain_result(
+            f"---\n"
             f"📝 备忘录 #{memo_id}  {pinned}\n"
+            f"标题: {title}\n"
+            f"作者: {creator}\n"
             f"可见性: {visibility}\n"
-            f"时间: {created}\n"
-            f"──────────────\n"
-            f"{content}"
+            f"创建时间: {created}\n"
+            f"修改时间: {updated}\n"
+            f"---\n"
+            f"{content}\n"
+            f"---"
         )
 
     async def _cmd_update(self, event: AstrMessageEvent, args: str):
@@ -247,7 +261,7 @@ class MemosNotesPlugin(Star):
             yield event.plain_result("❌ 用法: /memos update <ID> <新内容>")
             return
 
-        memo_id = parts[0].strip()
+        memo_id = parts[0].strip().lstrip("#")
         if not memo_id:
             yield event.plain_result("❌ ID 不能为空。")
             return
@@ -269,7 +283,7 @@ class MemosNotesPlugin(Star):
             yield event.plain_result("❌ 用法: /memos delete <备忘录ID>")
             return
 
-        memo_id = args.split()[0].strip()
+        memo_id = args.split()[0].strip().lstrip("#")
         if not memo_id:
             yield event.plain_result("❌ ID 不能为空。")
             return
