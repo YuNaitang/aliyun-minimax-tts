@@ -31,3 +31,4 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+plugins/astrbot_plugin_memosnotes/
