@@ -2,7 +2,7 @@ name: astrbot_plugin_memosnotes
 author: YuNaitang
 desc: 连接到自建 Memos 实例。支持 CRUD、置顶/归档、标签系统、LLM 知识库存取（自动保存/搜索知识）、自然语言写日记
 short_desc: Memos 备忘录/日记集成插件
-version: "1.5.0"
+version: "1.5.1"
 astrbot_version: ">=4.16"
 support_platforms:
   - aiocqhttp

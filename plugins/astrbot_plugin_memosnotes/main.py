@@ -251,7 +251,7 @@ class MemosNotesPlugin(Star):
             yield event.plain_result(f"❌ 未找到备忘录 #{memo_id}。")
             return
 
-        # ---- 构建三段式合并转发 ----
+        # ---- 构建元数据 ----
         memo_name = memo.get("name", "")
         memo_id = memo_name.split("/")[-1] or memo.get("id", "?")
         content = (memo.get("content") or "").strip()
@@ -265,35 +265,42 @@ class MemosNotesPlugin(Star):
         pinned = "📌 " if memo.get("pinned") else ""
         tag_str = " #".join(tags) if tags else "（无标签）"
 
-        # Segment 1 — Front Matter
         front_matter = (
-            f"{pinned}#{memo_id}\n"
-            f"标题: {title}\n"
-            f"作者: {creator}\n"
-            f"状态: {'正常' if state == 'NORMAL' else '已归档'}\n"
-            f"可见性: {visibility}\n"
-            f"标签: #{tag_str}\n"
+            f"{pinned}#{memo_id}  标题: {title}\n"
+            f"作者: {creator}  状态: {'正常' if state == 'NORMAL' else '已归档'}\n"
+            f"可见性: {visibility}  标签: #{tag_str}\n"
             f"创建: {created}\n"
             f"更新: {updated}"
         )
 
-        # Segment 2 — 正文
-        body = content or "（空）"
-
-        # Segment 3 — 附件
         attachments = memo.get("attachments", [])
         if attachments:
-            attach_lines = [f"- {a.get('name', '未命名')} ({a.get('type', '未知')})" for a in attachments]
+            attach_lines = [f"  - {a.get('name', '未命名')} ({a.get('type', '未知')})" for a in attachments]
             attachment_text = "📎 附件\n" + "\n".join(attach_lines)
         else:
             attachment_text = "📎 无附件"
 
-        nodes = Nodes(nodes=[
-            Node(content=[Plain(text=front_matter)], name="📋 MemosNotes", uin="0"),
-            Node(content=[Plain(text=body)], name="📝 内容", uin="0"),
-            Node(content=[Plain(text=attachment_text)], name="📎 附件", uin="0"),
-        ])
-        yield event.chain_result([nodes])
+        # ---- 按平台选择发送方式 ----
+        platform = event.get_platform_name()
+        # 支持合并转发的平台: aiocqhttp, qq_official, qq_official_webhook
+        can_forward = platform in ("aiocqhttp", "qq_official", "qq_official_webhook")
+
+        if can_forward:
+            nodes = Nodes(nodes=[
+                Node(content=[Plain(text=front_matter)], name="📋 MemosNotes", uin="0"),
+                Node(content=[Plain(text=content or "（空）")], name="📝 内容", uin="0"),
+                Node(content=[Plain(text=attachment_text)], name="📎 附件", uin="0"),
+            ])
+            yield event.chain_result([nodes])
+        else:
+            # 其他平台降级为纯文本 + 分隔线
+            yield event.plain_result(
+                front_matter
+                + "\n\n──────\n\n"
+                + (content or "（空）")
+                + "\n\n──────\n\n"
+                + attachment_text
+            )
 
     async def _cmd_update(self, event: AstrMessageEvent, args: str):
         if not args:
