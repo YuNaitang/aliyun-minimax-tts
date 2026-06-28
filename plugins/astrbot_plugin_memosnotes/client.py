@@ -71,14 +71,12 @@ class MemosClient:
         self,
         page_size: int = 10,
         page_token: str = "",
-        filter_str: str = "",
     ) -> Optional[dict]:
         """列出备忘录
 
         Args:
             page_size: 每页数量（最大 1000）
             page_token: 分页令牌（从上次响应获取）
-            filter_str: AIP-160 过滤语法，例如 `row_status == "NORMAL"`
 
         Returns:
             {"memos": [...], "nextPageToken": "..."} 或 None
@@ -88,8 +86,6 @@ class MemosClient:
             params = {"pageSize": min(max(page_size, 1), 1000)}
             if page_token:
                 params["pageToken"] = page_token
-            if filter_str:
-                params["filter"] = filter_str
             resp = await self._client.get(
                 f"{self._api_base}/memos", params=params
             )
@@ -99,11 +95,11 @@ class MemosClient:
             self._log_error(endpoint, e)
             return None
 
-    async def get_memo(self, memo_id: int) -> Optional[dict]:
+    async def get_memo(self, memo_id: str) -> Optional[dict]:
         """获取单条备忘录
 
         Args:
-            memo_id: 备忘录 ID
+            memo_id: 备忘录短 ID（例如 "Lnk3P22K8CKoAS4ZFMaj9G"）
 
         Returns:
             memo dict 或 None
@@ -120,7 +116,7 @@ class MemosClient:
             return None
 
     async def update_memo(
-        self, memo_id: int, **fields
+        self, memo_id: str, **fields
     ) -> Optional[dict]:
         """更新备忘录（PATCH，仅传需要更新的字段）
 
@@ -128,7 +124,7 @@ class MemosClient:
         不传的字段不会被修改。
 
         Args:
-            memo_id: 备忘录 ID
+            memo_id: 备忘录短 ID
             **fields: 要更新的字段
 
         Returns:
@@ -152,11 +148,11 @@ class MemosClient:
             self._log_error(endpoint, e)
             return None
 
-    async def delete_memo(self, memo_id: int) -> bool:
+    async def delete_memo(self, memo_id: str) -> bool:
         """删除（软删除）备忘录
 
         Args:
-            memo_id: 备忘录 ID
+            memo_id: 备忘录短 ID
 
         Returns:
             bool 是否成功

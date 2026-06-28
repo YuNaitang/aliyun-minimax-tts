@@ -6,6 +6,7 @@ data/data_v4.db*
 data/knowledge_base/
 data/config/*.json
 data/plugins.json
+data/logs/
 *.lock
 .astrbot
 

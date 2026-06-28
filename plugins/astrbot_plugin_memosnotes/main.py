@@ -20,7 +20,7 @@ class MemosNotesPlugin(Star):
 
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
-        # ---------- 读取小部件配置 ----------
+        # ---------- 读取插件配置 ----------
         if config is not None and isinstance(config, dict):
             memos_url = (config.get("memos_url") or "").strip()
             memos_token = (config.get("memos_token") or "").strip()
@@ -80,13 +80,15 @@ class MemosNotesPlugin(Star):
 
         text = event.message_str.strip()
 
-        # 移除命令前缀（/memos 或 /mn），取剩余部分
-        # event.message_str 可能包含命令前缀也可能不包含
-        rest = text
-        for prefix in ("/memos ", "/memos", "/mn ", "/mn"):
-            if text.startswith(prefix):
-                rest = text[len(prefix):].strip()
-                break
+        # AstrBot 的 @filter.command 会剥掉 / 前缀，
+        # 所以 event.message_str 可能是 "memos help" 或仅 "help"
+        parts = text.split(maxsplit=1)
+        if parts[0] in ("memos", "mn"):
+            # 命令名还在 message_str 中，去掉它
+            rest = parts[1].strip() if len(parts) > 1 else ""
+        else:
+            # 只有子命令+参数
+            rest = text
 
         if not rest:
             yield event.plain_result(
@@ -168,10 +170,7 @@ class MemosNotesPlugin(Star):
             except (ValueError, IndexError):
                 pass
 
-        result = await self.client.list_memos(
-            page_size=page_size,
-            filter_str='row_status == "NORMAL"',
-        )
+        result = await self.client.list_memos(page_size=page_size)
         if result is None:
             yield event.plain_result("❌ 查询失败，请检查配置和网络。")
             return
@@ -194,10 +193,9 @@ class MemosNotesPlugin(Star):
             yield event.plain_result("❌ 用法: /memos get <备忘录ID>")
             return
 
-        try:
-            memo_id = int(args.split()[0])
-        except (ValueError, IndexError):
-            yield event.plain_result("❌ ID 必须是数字。")
+        memo_id = args.split()[0].strip()
+        if not memo_id:
+            yield event.plain_result("❌ ID 不能为空。")
             return
 
         memo = await self.client.get_memo(memo_id)
@@ -228,10 +226,9 @@ class MemosNotesPlugin(Star):
             yield event.plain_result("❌ 用法: /memos update <ID> <新内容>")
             return
 
-        try:
-            memo_id = int(parts[0])
-        except ValueError:
-            yield event.plain_result("❌ ID 必须是数字。")
+        memo_id = parts[0].strip()
+        if not memo_id:
+            yield event.plain_result("❌ ID 不能为空。")
             return
 
         new_content = parts[1].strip()
@@ -251,10 +248,9 @@ class MemosNotesPlugin(Star):
             yield event.plain_result("❌ 用法: /memos delete <备忘录ID>")
             return
 
-        try:
-            memo_id = int(args.split()[0])
-        except (ValueError, IndexError):
-            yield event.plain_result("❌ ID 必须是数字。")
+        memo_id = args.split()[0].strip()
+        if not memo_id:
+            yield event.plain_result("❌ ID 不能为空。")
             return
 
         success = await self.client.delete_memo(memo_id)
